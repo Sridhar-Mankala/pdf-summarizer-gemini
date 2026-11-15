@@ -14,8 +14,8 @@ from pdf_summarizer.config import get_settings  # noqa: E402
 PHASES = [
     ("0", "Environment, API key and GitHub auth", "done"),
     ("1", "Skeleton, dependencies, config layer", "done"),
-    ("2", "PDF ingestion and chunking", "next"),
-    ("3", "Summarization engine", "planned"),
+    ("2", "PDF ingestion and chunking", "done"),
+    ("3", "Summarization engine", "next"),
     ("4", "Streamlit UI", "planned"),
     ("5", "RAG Q&A with citations", "planned"),
     ("6", "Tests, lint, CI", "planned"),
