@@ -1,0 +1,26 @@
+# ---- secrets -------------------------------------------------------------
+.env
+.env.*
+!.env.example
+
+# ---- python --------------------------------------------------------------
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# ---- app data ------------------------------------------------------------
+data/uploads/
+data/chroma/
+.streamlit/secrets.toml
+
+# ---- editors / os --------------------------------------------------------
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
