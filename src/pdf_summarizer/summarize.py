@@ -34,7 +34,7 @@ from .prompts import (
     format_pages,
     length_guidance,
 )
-from .utils import AppError, EmptyDocumentError, estimate_tokens, get_logger
+from .utils import AppError, EmptyDocumentError, estimate_tokens, friendly_model_error, get_logger
 
 logger = get_logger("summarize")
 
@@ -112,17 +112,7 @@ def _group_by_tokens[T](
 
 
 def _friendly_error(exc: Exception) -> str:
-    text = str(exc)
-    lowered = text.lower()
-    if "429" in text or "resource_exhausted" in lowered or "quota" in lowered:
-        return (
-            "Gemini rate limit or quota reached. Wait a minute, or raise CHUNK_SIZE to send fewer requests."
-        )
-    if "api key" in lowered or "403" in text or "401" in text or "permission" in lowered:
-        return "Gemini rejected the API key. Check GEMINI_API_KEY in .env and that the Generative Language API is enabled."
-    if "404" in text or "not found" in lowered:
-        return "The configured Gemini model is not available for this key. Check GEMINI_MODEL in .env."
-    return f"Gemini call failed: {text[:300]}"
+    return friendly_model_error(exc)
 
 
 class _Caller:

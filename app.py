@@ -18,8 +18,9 @@ if str(SRC) not in sys.path:
 
 from pdf_summarizer.chunking import Chunk, chunk_document, coverage_stats  # noqa: E402
 from pdf_summarizer.config import Settings, get_settings  # noqa: E402
-from pdf_summarizer.llm import build_chat_model  # noqa: E402
+from pdf_summarizer.llm import build_chat_model, build_embeddings  # noqa: E402
 from pdf_summarizer.loaders import PdfDocument, load_pdf  # noqa: E402
+from pdf_summarizer.rag import PdfChat  # noqa: E402
 from pdf_summarizer.summarize import SummaryResult, plan_calls, summarize  # noqa: E402
 from pdf_summarizer.utils import AppError, configure_logging, human_bytes, sha256_bytes  # noqa: E402
 
@@ -128,6 +129,68 @@ def render_summary(result: SummaryResult, document: PdfDocument) -> None:
     )
 
 
+def render_ask_tab(
+    chunks: list[Chunk],
+    settings: Settings,
+    model_name: str,
+    temperature: float,
+    digest: str,
+) -> None:
+    """Chat over the document; the index is built once per document digest."""
+    state = st.session_state.get("chat")
+    history = state["history"] if state and state["key"] == digest else []
+
+    for question, answer in history:
+        st.chat_message("user").write(question)
+        with st.chat_message("assistant"):
+            st.markdown(answer.answer)
+            if answer.citations:
+                pages = ", ".join(f"p. {page}" for page in answer.pages)
+                with st.expander(f"Sources ({pages})"):
+                    for citation in answer.citations:
+                        st.markdown(f"**p. {citation.page}** - _{citation.preview}_")
+
+    if history and st.button("Clear conversation", key=f"clear-{digest[:8]}"):
+        st.session_state.pop("chat", None)
+        st.rerun()
+
+    question = st.text_input(
+        "Ask a question about this PDF",
+        key=f"question-{digest[:8]}",
+        placeholder="What does the document say about ...?",
+    )
+    if not st.button("Ask", type="primary", key=f"ask-{digest[:8]}") or not question.strip():
+        if not history:
+            st.caption("Answers use only this PDF and cite the page numbers they come from.")
+        return
+
+    current = st.session_state.get("chat")
+    if not current or current["key"] != digest:
+        with st.spinner("Indexing pages with Gemini embeddings..."):
+            try:
+                chat = PdfChat(
+                    chunks,
+                    model=cached_model(model_name, temperature),
+                    embeddings=build_embeddings(settings),
+                    collection_name=f"pdf-{digest[:12]}",
+                )
+            except AppError as exc:
+                st.error(str(exc))
+                return
+        current = {"key": digest, "chat": chat, "history": []}
+        st.session_state["chat"] = current
+
+    try:
+        with st.spinner("Retrieving and answering..."):
+            answer = current["chat"].ask(question)
+    except AppError as exc:
+        st.error(str(exc))
+        return
+
+    current["history"].append((question, answer))
+    st.rerun()
+
+
 def main() -> None:
     st.set_page_config(page_title="PDF Summarizer", page_icon="📄", layout="wide")
     st.title("📄 PDF Summarizer")
@@ -198,12 +261,15 @@ def main() -> None:
         is_current = True
         st.success(f"Done in {result.elapsed_s:.1f}s across {result.model_calls} Gemini call(s).")
 
-    summary_tab, pages_tab = st.tabs(["Summary", "Pages"])
+    summary_tab, ask_tab, pages_tab = st.tabs(["Summary", "Ask", "Pages"])
     with summary_tab:
         if is_current:
             render_summary(st.session_state["summary"]["result"], document)
         else:
             st.caption("Press **Summarise** to generate a summary. Settings changes apply on the next run.")
+
+    with ask_tab:
+        render_ask_tab(chunks, settings, model_name, temperature, digest)
 
     with pages_tab:
         labels = [f"Page {page.number} ({page.char_count} chars)" for page in document.pages]

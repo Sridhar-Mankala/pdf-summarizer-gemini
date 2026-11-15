@@ -78,3 +78,16 @@ def human_bytes(size: int) -> str:
             return f"{value:.1f} {unit}"
         value /= 1024
     return f"{value:.1f} GB"
+
+
+def friendly_model_error(exc: Exception, provider: str = "Gemini") -> str:
+    """Turn SDK/network exceptions into something a user can act on."""
+    text = str(exc)
+    lowered = text.lower()
+    if "429" in text or "resource_exhausted" in lowered or "quota" in lowered:
+        return f"{provider} rate limit or quota reached. Wait a minute, or raise CHUNK_SIZE to send fewer requests."
+    if "api key" in lowered or "401" in text or "403" in text or "permission" in lowered:
+        return f"{provider} rejected the API key. Check GEMINI_API_KEY in .env and that the Generative Language API is enabled."
+    if "404" in text or "not found" in lowered:
+        return f"The configured {provider} model is not available for this key. Check GEMINI_MODEL in .env."
+    return f"{provider} call failed: {text[:300]}"

@@ -120,6 +120,30 @@ def length_guidance(length: str) -> str:
     return LENGTH_GUIDANCE.get(length, LENGTH_GUIDANCE["standard"])
 
 
+RAG_SYSTEM = (
+    "You answer questions about ONE document using only the excerpts provided. "
+    "Every factual sentence must carry an inline page citation like [p. 3]. "
+    "If the excerpts do not contain the answer, reply exactly: "
+    '"I couldn\'t find that in the document." '
+    "Never use outside knowledge and never guess."
+)
+
+RAG_PROMPT = ChatPromptTemplate.from_messages(
+    [
+        ("system", RAG_SYSTEM),
+        (
+            "human",
+            """Excerpts from the document:
+{context}
+
+Question: {question}
+
+Answer concisely, with inline [p. N] citations after each claim.""",
+        ),
+    ]
+)
+
+
 def format_pages(pages: list[int]) -> str:
     if not pages:
         return "unknown"
