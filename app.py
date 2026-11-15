@@ -17,7 +17,7 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from pdf_summarizer.chunking import Chunk, chunk_document, coverage_stats  # noqa: E402
-from pdf_summarizer.config import Settings, get_settings  # noqa: E402
+from pdf_summarizer.config import ENV_FILE, Settings, env_diagnostics, get_settings  # noqa: E402
 from pdf_summarizer.llm import build_chat_model, build_embeddings  # noqa: E402
 from pdf_summarizer.loaders import PdfDocument, load_pdf  # noqa: E402
 from pdf_summarizer.rag import PdfChat  # noqa: E402
@@ -200,8 +200,15 @@ def main() -> None:
         settings = get_settings()
         configure_logging(settings.log_level)
     except Exception as exc:
-        st.error("Configuration problem - fix `.env` and reload.")
+        st.error("Configuration problem - the app could not read `GEMINI_API_KEY`.")
         st.code(str(exc), language="text")
+        st.markdown("**What the app checked**")
+        for label, value in env_diagnostics().items():
+            st.markdown(f"- **{label}:** `{value}`")
+        st.caption(
+            f"Fix: add `GEMINI_API_KEY=...` to `{ENV_FILE}` and save it, then press **R** to rerun. "
+            "Get a key at https://aistudio.google.com/apikey"
+        )
         st.stop()
 
     model_name, length, temperature, chunk_size, chunk_overlap = render_sidebar(settings)

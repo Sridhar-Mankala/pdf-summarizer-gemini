@@ -7,6 +7,7 @@ missing API key fails fast instead of surfacing as a confusing 403 later.
 
 from __future__ import annotations
 
+import os
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
@@ -24,7 +25,9 @@ class Settings(BaseSettings):
     """Validated application settings loaded from env / .env."""
 
     model_config = SettingsConfigDict(
-        env_file=ENV_FILE,
+        # Later files win: the project `.env` beats a `.env` in the current
+        # working directory, and real environment variables beat both.
+        env_file=(".env", ENV_FILE),
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
@@ -84,3 +87,14 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     """Cached settings instance - import-safe and cheap to call repeatedly."""
     return Settings()  # type: ignore[call-arg]  # values come from env/.env
+
+
+def env_diagnostics() -> dict[str, str]:
+    """Facts to show when validation fails - usually it is a missing `.env`."""
+    exists = ENV_FILE.is_file()
+    return {
+        "expected .env": str(ENV_FILE),
+        "file found": f"yes ({ENV_FILE.stat().st_size} bytes)" if exists else "NO",
+        "working directory": str(Path.cwd()),
+        "GEMINI_API_KEY in shell env": "yes" if os.getenv("GEMINI_API_KEY") else "no",
+    }

@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 from pydantic import ValidationError
 
+import pdf_summarizer.config as config
 from pdf_summarizer.config import Settings
 
 FAKE_KEY = "AIza" + "x" * 35
@@ -52,6 +55,28 @@ def test_overlap_must_be_smaller_than_chunk_size() -> None:
 def test_temperature_bounds() -> None:
     with pytest.raises(ValidationError):
         make_settings(temperature=3.0)
+
+
+def test_env_diagnostics_reports_missing_file(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(config, "ENV_FILE", tmp_path / "missing.env")
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+
+    diag = config.env_diagnostics()
+
+    assert diag["expected .env"] == str(tmp_path / "missing.env")
+    assert diag["file found"] == "NO"
+    assert diag["GEMINI_API_KEY in shell env"] == "no"
+
+
+def test_env_diagnostics_flags_key_in_shell(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GEMINI_API_KEY", FAKE_KEY)
+    assert config.env_diagnostics()["GEMINI_API_KEY in shell env"] == "yes"
+
+
+def test_env_file_sources_cover_project_and_cwd() -> None:
+    """A `.env` next to the checkout wins; `./.env` is the fallback."""
+    sources = Settings.model_config["env_file"]
+    assert sources == (".env", config.ENV_FILE)  # type: ignore[comparison-overlap]
 
 
 def test_env_vars_are_read(monkeypatch: pytest.MonkeyPatch) -> None:
