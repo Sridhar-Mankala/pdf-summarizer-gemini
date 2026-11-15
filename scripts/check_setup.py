@@ -147,7 +147,7 @@ def check_gemini(key: str, env: dict[str, str]) -> None:
         detail = exc.read().decode(errors="ignore")
         try:
             message = json.loads(detail)["error"]["message"]
-        except Exception:  # noqa: BLE001 - any malformed body
+        except Exception:  # any malformed error body
             message = detail[:200] or str(exc)
         hint = ""
         if exc.code in (400, 403):
