@@ -140,7 +140,7 @@ tests/                      pytest suite (offline)
 | 4 | Streamlit UI with digest-keyed state | done |
 | 5 | RAG Q&A with page citations | done |
 | 6 | Tests, lint, CI, docs | done |
-| 7 | `v0.1.0` release | in progress |
+| 7 | `v0.1.0` release | done |
 
 ## License
 
